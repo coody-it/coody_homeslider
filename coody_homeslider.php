@@ -17,6 +17,7 @@ class Coody_Homeslider extends Module
 {
     public const CONFIG_ENABLED = 'COODY_HOMESLIDER_ENABLED';
     public const CONFIG_SPEED = 'COODY_HOMESLIDER_SPEED';
+    public const CONFIG_NAV_ARROWS_DOTS = 'COODY_HOMESLIDER_NAV_ARROWS_DOTS';
     public const TPL_SLIDER = 'module:coody_homeslider/views/templates/hook/slider.tpl';
 
     /** @var bool */
@@ -26,7 +27,7 @@ class Coody_Homeslider extends Module
     {
         $this->name = 'coody_homeslider';
         $this->tab = 'front_office_features';
-        $this->version = '1.0.11';
+        $this->version = '1.0.14';
         $this->author = 'coody.it';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -46,6 +47,7 @@ class Coody_Homeslider extends Module
             && $this->installTab()
             && Configuration::updateValue(self::CONFIG_ENABLED, 1)
             && Configuration::updateValue(self::CONFIG_SPEED, 5000)
+            && Configuration::updateValue(self::CONFIG_NAV_ARROWS_DOTS, 0)
             && $this->registerHook('displayHeader')
             && $this->registerHook('displayWrapperTop')
             && $this->registerHook('displayHomeTop')
@@ -60,6 +62,7 @@ class Coody_Homeslider extends Module
             && $this->uninstallDb()
             && Configuration::deleteByName(self::CONFIG_ENABLED)
             && Configuration::deleteByName(self::CONFIG_SPEED)
+            && Configuration::deleteByName(self::CONFIG_NAV_ARROWS_DOTS)
             && parent::uninstall();
     }
 
@@ -68,8 +71,15 @@ class Coody_Homeslider extends Module
         $output = '';
 
         if (Tools::isSubmit('submitCoodyHomeSliderConfig')) {
-            Configuration::updateValue(self::CONFIG_ENABLED, (int) Tools::getValue(self::CONFIG_ENABLED));
-            Configuration::updateValue(self::CONFIG_SPEED, max(1000, (int) Tools::getValue(self::CONFIG_SPEED)));
+            $enabled = (int) Tools::getValue(self::CONFIG_ENABLED);
+            $speed = max(1000, (int) Tools::getValue(self::CONFIG_SPEED));
+            $navArrowsDots = (int) Tools::getValue(self::CONFIG_NAV_ARROWS_DOTS);
+
+            $this->updateConfigForAllShops(self::CONFIG_ENABLED, $enabled);
+            $this->updateConfigForAllShops(self::CONFIG_SPEED, $speed);
+            $this->updateConfigForAllShops(self::CONFIG_NAV_ARROWS_DOTS, $navArrowsDots);
+
+            $this->clearCache();
             $output .= $this->displayConfirmation($this->l('Ustawienia zostały zapisane.'));
         }
 
@@ -222,6 +232,11 @@ class Coody_Homeslider extends Module
                 }
             }
 
+            // Brak grafiki mobile → użyj desktop (front i <picture>).
+            if ($imageMobile === '' && $image !== '') {
+                $imageMobile = $image;
+            }
+
             if ($image === '' && $imageMobile === '') {
                 continue;
             }
@@ -336,13 +351,21 @@ class Coody_Homeslider extends Module
 
         self::$sliderRendered = true;
 
-        $cacheId = 'coody_homeslider|' . (int) $this->context->shop->id . '|' . (int) $this->context->language->id . '|' . md5(json_encode($slides));
+        $navArrowsDots = (bool) (int) Configuration::get(self::CONFIG_NAV_ARROWS_DOTS);
+        $speed = max(1000, (int) Configuration::get(self::CONFIG_SPEED));
+        $cacheId = 'coody_homeslider|'
+            . (int) $this->context->shop->id . '|'
+            . (int) $this->context->language->id . '|'
+            . (int) $navArrowsDots . '|'
+            . $speed . '|'
+            . md5(json_encode($slides));
 
         if (!$this->isCached(self::TPL_SLIDER, $cacheId)) {
             $this->context->smarty->assign([
                 'coody_homeslider' => [
                     'slides' => $slides,
-                    'speed' => max(1000, (int) Configuration::get(self::CONFIG_SPEED)),
+                    'speed' => $speed,
+                    'nav_arrows_dots' => $navArrowsDots,
                     'placeholder_url' => $this->_path . 'img/placeholder.svg',
                 ],
             ]);
@@ -354,6 +377,19 @@ class Coody_Homeslider extends Module
     protected function isModuleActive(): bool
     {
         return (bool) Configuration::get(self::CONFIG_ENABLED);
+    }
+
+    /**
+     * Zapisz konfigurację dla kontekstu globalnego i wszystkich sklepów
+     * (unikamy sytuacji, gdy front sklepu 1 ma starą wartość 0).
+     */
+    private function updateConfigForAllShops(string $key, $value): void
+    {
+        Configuration::updateValue($key, $value);
+
+        foreach (Shop::getShops(true, null, true) as $idShop) {
+            Configuration::updateValue($key, $value, false, null, (int) $idShop);
+        }
     }
 
     protected function isHomepage(): bool
@@ -388,6 +424,17 @@ class Coody_Homeslider extends Module
                         'class' => 'fixed-width-sm',
                         'desc' => $this->l('Minimalnie 1000 ms. Czas wyświetlania pojedynczego slajdu.'),
                     ],
+                    [
+                        'type' => 'switch',
+                        'label' => $this->l('Nawigacja: strzałki + kropki'),
+                        'name' => self::CONFIG_NAV_ARROWS_DOTS,
+                        'is_bool' => true,
+                        'desc' => $this->l('Gdy włączone: strzałki lewo/prawo na slajdzie i kropki na dole zamiast paska z nazwami slajdów.'),
+                        'values' => [
+                            ['id' => 'nav_arrows_dots_on', 'value' => 1, 'label' => $this->l('Tak')],
+                            ['id' => 'nav_arrows_dots_off', 'value' => 0, 'label' => $this->l('Nie')],
+                        ],
+                    ],
                 ],
                 'submit' => [
                     'title' => $this->l('Zapisz'),
@@ -402,11 +449,26 @@ class Coody_Homeslider extends Module
         $helper->default_form_language = (int) Configuration::get('PS_LANG_DEFAULT');
         $helper->allow_employee_form_lang = (int) Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG');
         $helper->submit_action = 'submitCoodyHomeSliderConfig';
-        $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
-        $helper->token = Tools::getAdminTokenLite('AdminModules');
+
+        // Formularz jest też na AdminCoodyHomeSliderConfig — token musi być tego kontrolera,
+        // nie AdminModules (inaczej BO zwraca „Invalid security token”).
+        $controllerName = '';
+        if (isset($this->context->controller->controller_name)) {
+            $controllerName = (string) $this->context->controller->controller_name;
+        }
+
+        if ($controllerName === 'AdminCoodyHomeSliderConfig') {
+            $helper->currentIndex = AdminController::$currentIndex;
+            $helper->token = Tools::getAdminTokenLite('AdminCoodyHomeSliderConfig');
+        } else {
+            $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+            $helper->token = Tools::getAdminTokenLite('AdminModules');
+        }
+
         $helper->fields_value = [
             self::CONFIG_ENABLED => (int) Configuration::get(self::CONFIG_ENABLED),
             self::CONFIG_SPEED => (int) Configuration::get(self::CONFIG_SPEED),
+            self::CONFIG_NAV_ARROWS_DOTS => (int) Configuration::get(self::CONFIG_NAV_ARROWS_DOTS),
         ];
 
         return $helper->generateForm([$fieldsForm]);
@@ -461,28 +523,158 @@ class Coody_Homeslider extends Module
             return false;
         }
 
-        $parentId = (int) Tab::getIdFromClassName('AdminCoody');
+        return $this->ensureSliderSubmenuTabs();
+    }
+
+    /**
+     * Menu: Coody → Slider → Konfiguracja / Slajdy.
+     */
+    public function ensureSliderSubmenuTabs(): bool
+    {
+        $coodyId = (int) Tab::getIdFromClassName('AdminCoody');
+        if ($coodyId <= 0) {
+            return false;
+        }
+
+        $parentId = $this->ensureTab(
+            'AdminCoodyHomeSliderParent',
+            $coodyId,
+            'image',
+            [
+                'pl' => 'Slider',
+                'en' => 'Slider',
+            ]
+        );
         if ($parentId <= 0) {
             return false;
         }
 
-        $tabId = (int) Tab::getIdFromClassName('AdminCoodyHomeSlider');
-        if ($tabId > 0) {
-            return $this->updateSliderTab($tabId, $parentId);
+        $configId = $this->ensureTab(
+            'AdminCoodyHomeSliderConfig',
+            $parentId,
+            'settings',
+            [
+                'pl' => 'Konfiguracja',
+                'en' => 'Configuration',
+            ],
+            0
+        );
+        if ($configId <= 0) {
+            return false;
         }
 
-        $tab = new Tab();
+        $slidesId = $this->ensureTab(
+            'AdminCoodyHomeSlider',
+            $parentId,
+            'image',
+            [
+                'pl' => 'Slajdy',
+                'en' => 'Slides',
+            ],
+            1
+        );
+        if ($slidesId <= 0) {
+            return false;
+        }
+
+        $this->copyTabAccess('AdminCoodyHomeSlider', 'AdminCoodyHomeSliderParent');
+        $this->copyTabAccess('AdminCoodyHomeSlider', 'AdminCoodyHomeSliderConfig');
+
+        return true;
+    }
+
+    /**
+     * @param array<string, string> $labelsByIso
+     */
+    private function ensureTab(string $className, int $parentId, string $icon, array $labelsByIso, int $position = 0): int
+    {
+        $tabId = (int) Tab::getIdFromClassName($className);
+        $tab = $tabId > 0 ? new Tab($tabId) : new Tab();
+
+        if ($tabId > 0 && !Validate::isLoadedObject($tab)) {
+            return 0;
+        }
+
         $tab->active = 1;
-        $tab->class_name = 'AdminCoodyHomeSlider';
+        $tab->class_name = $className;
         $tab->module = $this->name;
         $tab->id_parent = $parentId;
-        $tab->icon = 'image';
+        $tab->icon = $icon;
+        $tab->position = $position;
 
         foreach (Language::getLanguages(false) as $lang) {
-            $tab->name[(int) $lang['id_lang']] = $this->getSliderTabLabel($lang['iso_code']);
+            $iso = (string) $lang['iso_code'];
+            $tab->name[(int) $lang['id_lang']] = $labelsByIso[$iso]
+                ?? $labelsByIso['en']
+                ?? $className;
         }
 
-        return (bool) $tab->add();
+        $ok = $tabId > 0 ? (bool) $tab->update() : (bool) $tab->add();
+
+        return $ok ? (int) $tab->id : 0;
+    }
+
+    /**
+     * Copy profile access from an existing tab to a newly created sibling/parent.
+     */
+    private function copyTabAccess(string $fromClass, string $toClass): void
+    {
+        $fromId = (int) Tab::getIdFromClassName($fromClass);
+        $toId = (int) Tab::getIdFromClassName($toClass);
+        if ($fromId <= 0 || $toId <= 0 || $fromId === $toId) {
+            return;
+        }
+
+        $fromRoles = Db::getInstance()->executeS(
+            'SELECT ar.slug
+            FROM `' . _DB_PREFIX_ . 'authorization_role` ar
+            WHERE ar.slug LIKE "ROLE_MOD_TAB_' . bqSQL(Tools::strtoupper($fromClass)) . '_%"'
+        );
+        if (!is_array($fromRoles) || $fromRoles === []) {
+            return;
+        }
+
+        foreach (['CREATE', 'READ', 'UPDATE', 'DELETE'] as $perm) {
+            $fromSlug = 'ROLE_MOD_TAB_' . Tools::strtoupper($fromClass) . '_' . $perm;
+            $toSlug = 'ROLE_MOD_TAB_' . Tools::strtoupper($toClass) . '_' . $perm;
+
+            $fromRoleId = (int) Db::getInstance()->getValue(
+                'SELECT `id_authorization_role` FROM `' . _DB_PREFIX_ . 'authorization_role`
+                WHERE `slug` = "' . pSQL($fromSlug) . '"'
+            );
+            $toRoleId = (int) Db::getInstance()->getValue(
+                'SELECT `id_authorization_role` FROM `' . _DB_PREFIX_ . 'authorization_role`
+                WHERE `slug` = "' . pSQL($toSlug) . '"'
+            );
+            if ($fromRoleId <= 0 || $toRoleId <= 0) {
+                continue;
+            }
+
+            $profiles = Db::getInstance()->executeS(
+                'SELECT `id_profile` FROM `' . _DB_PREFIX_ . 'access`
+                WHERE `id_authorization_role` = ' . $fromRoleId
+            );
+            if (!is_array($profiles)) {
+                continue;
+            }
+
+            foreach ($profiles as $row) {
+                $idProfile = (int) $row['id_profile'];
+                $exists = (int) Db::getInstance()->getValue(
+                    'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'access`
+                    WHERE `id_profile` = ' . $idProfile . '
+                      AND `id_authorization_role` = ' . $toRoleId
+                );
+                if ($exists) {
+                    continue;
+                }
+
+                Db::getInstance()->insert('access', [
+                    'id_profile' => $idProfile,
+                    'id_authorization_role' => $toRoleId,
+                ]);
+            }
+        }
     }
 
     /**
@@ -554,36 +746,24 @@ class Coody_Homeslider extends Module
 
     public function updateSliderTab(int $tabId, int $parentId): bool
     {
-        $tab = new Tab($tabId);
-        if (!Validate::isLoadedObject($tab)) {
-            return false;
-        }
+        // BC for older upgrades — rebuild full submenu instead.
+        unset($tabId, $parentId);
 
-        $tab->id_parent = $parentId;
-        $tab->module = $this->name;
-        $tab->active = 1;
-        $tab->icon = 'image';
-
-        foreach (Language::getLanguages(false) as $lang) {
-            $tab->name[(int) $lang['id_lang']] = $this->getSliderTabLabel($lang['iso_code']);
-        }
-
-        return (bool) $tab->update();
-    }
-
-    private function getSliderTabLabel(string $isoCode): string
-    {
-        return $isoCode === 'pl' ? 'Slider' : 'Slider';
+        return $this->ensureSliderSubmenuTabs();
     }
 
     private function uninstallTab(): bool
     {
-        $tabId = (int) Tab::getIdFromClassName('AdminCoodyHomeSlider');
-        if ($tabId <= 0) {
-            return true;
+        $ok = true;
+        foreach (['AdminCoodyHomeSlider', 'AdminCoodyHomeSliderConfig', 'AdminCoodyHomeSliderParent'] as $className) {
+            $tabId = (int) Tab::getIdFromClassName($className);
+            if ($tabId <= 0) {
+                continue;
+            }
+            $ok = (bool) (new Tab($tabId))->delete() && $ok;
         }
 
-        return (bool) (new Tab($tabId))->delete();
+        return $ok;
     }
 
     /**

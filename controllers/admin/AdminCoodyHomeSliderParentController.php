@@ -1,13 +1,23 @@
 <?php
-
 /**
- * Parent tab for Coody modules (fallback when ds_checkout is not installed).
+ * Parent menu tab: Coody → Slider (redirects to first child).
+ *
+ * @author    coody.it
+ * @copyright 2026 coody.it
  */
-class AdminCoodyController extends ModuleAdminController
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
+class AdminCoodyHomeSliderParentController extends ModuleAdminController
 {
     public function init()
     {
-        $candidates = ['AdminCoodyHomeSliderConfig', 'AdminCoodyHomeSlider', 'AdminCoodyHomeSliderParent', 'AdminDsCheckout', 'AdminDsContacts', 'AdminDsContactsElement'];
+        $candidates = [
+            'AdminCoodyHomeSliderConfig',
+            'AdminCoodyHomeSlider',
+        ];
 
         foreach ($candidates as $className) {
             $tabId = (int) Tab::getIdFromClassName($className);

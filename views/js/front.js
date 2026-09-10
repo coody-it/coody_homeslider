@@ -1,8 +1,10 @@
 /**
- * Coody Home Slider — karuzela + dolny pasek z tytułami.
+ * Coody Home Slider — karuzela + nawigacja (tytuły albo strzałki + kropki).
  *
  * Theme may add .coody-homeslider--contained (e.g. hummingbird): then skip
  * full-bleed syncFullWidth and widescreen peek (>=1921) to avoid side flicker.
+ *
+ * .coody-homeslider--arrows-dots: side arrows + Owl dots (no title bar).
  */
 $(function () {
   var $section = $('.coody-homeslider');
@@ -13,9 +15,13 @@ $(function () {
   }
 
   var isContained = $section.hasClass('coody-homeslider--contained');
+  var useArrowsDots = $section.hasClass('coody-homeslider--arrows-dots')
+    || $slider.data('coody-nav') === 'arrows-dots';
   var speed = parseInt($slider.data('coody-speed'), 10) || 5000;
   var $titleItems = $section.find('.coody-homeslider__title-item');
-  var slideCount = $titleItems.length || $slider.children().length;
+  var slideCount = useArrowsDots
+    ? $slider.children().length
+    : ($titleItems.length || $slider.children().length);
   var mobileQuery = window.matchMedia('(max-width: 767px)');
   var widePeekQuery = window.matchMedia('(min-width: 1921px)');
   var hasMultipleSlides = slideCount > 1;
@@ -252,6 +258,10 @@ $(function () {
   }
 
   function setActiveTitle(index) {
+    if (!$titleItems.length) {
+      return;
+    }
+
     $titleItems
       .removeClass('is-active')
       .attr('aria-selected', 'false')
@@ -277,7 +287,7 @@ $(function () {
       autoplay: hasMultipleSlides,
       autoplayTimeout: speed,
       autoplayHoverPause: true,
-      dots: false,
+      dots: useArrowsDots && hasMultipleSlides,
       items: 1,
       smartSpeed: 450,
       center: false,
@@ -370,11 +380,11 @@ $(function () {
     }
   }
 
-  $section.find('.coody-homeslider__nav-btn--prev').on('click', function () {
+  $section.find('.coody-homeslider__nav-btn--prev, .coody-homeslider__arrow--prev').on('click', function () {
     $slider.trigger('prev.owl.carousel');
   });
 
-  $section.find('.coody-homeslider__nav-btn--next').on('click', function () {
+  $section.find('.coody-homeslider__nav-btn--next, .coody-homeslider__arrow--next').on('click', function () {
     $slider.trigger('next.owl.carousel');
   });
 

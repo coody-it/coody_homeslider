@@ -2,6 +2,34 @@
 
 Wszystkie istotne zmiany w module **Coody Home Slider** (`coody_homeslider`).
 
+## [1.0.14] — 2026-09-10
+
+### Naprawione
+- Zapis konfiguracji BO przy multistore: wartości zapisywane globalnie i dla każdego sklepu (uniknięcie rozjazdu override’ów).
+- Formularz **Konfiguracja** na własnej zakładce: poprawny token kontrolera `AdminCoodyHomeSliderConfig` (wcześniej token `AdminModules` → „Invalid security token”).
+- Ikona pozycji **Slider** w menu Coody (przywrócona `image`).
+
+### Zmienione
+- Tryb strzałki + kropki: na mobile (≤767px) strzałki i dotsy są ukryte (swipe bez zmian).
+- Dokumentacja: README zaktualizowany do 1.0.14 (menu, tryby nawigacji, fallback mobile).
+
+---
+
+## [1.0.13] — 2026-09-10
+
+### Dodane
+- Menu BO: **Coody → Slider → Konfiguracja / Slajdy** (submenu zamiast jednej pozycji).
+
+---
+
+## [1.0.12] — 2026-09-10
+
+### Dodane
+- Opcja BO **Nawigacja: strzałki + kropki** — zamiast paska z nazwami slajdów: strzałki lewo/prawo na slajdzie i kropki na dole (styl ogólny, do nadpisania w motywie).
+- Fallback front: brak grafiki mobile → używana grafika desktop.
+
+---
+
 ## [1.0.11] — 2026-08-12
 
 ### Dodane
