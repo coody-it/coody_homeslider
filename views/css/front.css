@@ -419,3 +419,376 @@ section.coody-homeslider.coody-homeslider--arrows-dots .coody-homeslider__carous
     opacity: 1;
   }
 }
+
+/* ==========================================================================
+   Układ „W kontenerze” (konfiguracja modułu) — szerokość treści strony,
+   naturalna wysokość grafiki, bez full-bleed i bez peeka na ultra-wide.
+   ========================================================================== */
+section.coody-homeslider.coody-homeslider--contained {
+  --chs-radius: 1.34rem;
+  width: auto;
+  max-width: 100%;
+  margin: 1rem 0 1.5rem;
+  overflow: hidden;
+}
+
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__carousel {
+  opacity: 1;
+  transition: none;
+}
+
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__inner,
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__carousel,
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__carousel .owl-stage-outer {
+  overflow: hidden;
+  max-width: 100%;
+  border-radius: var(--chs-radius);
+}
+
+section.coody-homeslider.coody-homeslider--contained figure {
+  height: auto;
+  max-height: none;
+  border-radius: var(--chs-radius);
+}
+
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__carousel img,
+section.coody-homeslider.coody-homeslider--contained picture img {
+  height: auto;
+}
+
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__carousel .owl-stage-outer,
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__carousel .owl-carousel.owl-drag .owl-item {
+  min-height: 0;
+}
+
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__carousel .owl-item figure,
+section.coody-homeslider.coody-homeslider--contained .coody-homeslider__carousel .owl-item:not(.center) figure {
+  opacity: 1;
+  transition: none;
+}
+
+section.coody-homeslider .coody-homeslider__media-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+
+/* ==========================================================================
+   Warstwy slajdu (edytor wizualny w BO)
+   Pozycja/wymiary w % slajdu, rozmiar tekstu w px przy szerokości referencyjnej
+   (komputer 1296 px, telefon 375 px) przeliczany na cqi — slajd skaluje się jak obraz.
+   Zmienne: --x --y --w --h --fs (komputer), --xm --ym --wm --hm --fsm (telefon),
+   --c --bg --op --fw --ls --lh --ta --r --blur --delay --dur.
+   Wersja telefonu: media query na froncie, klasa .coody-homeslider--preview-mobile w edytorze.
+   ========================================================================== */
+.coody-homeslider {
+  --chs-accent: #1d2f67;
+  --chs-accent-contrast: #fff;
+}
+
+.coody-homeslider figure {
+  container-type: inline-size;
+}
+
+.coody-homeslider .coody-homeslider__layers {
+  --_s: var(--_sd, none);
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  background-image: var(--_s);
+}
+
+/* Przyciemnienie zdjęcia pod warstwami */
+.coody-homeslider .coody-homeslider__layers[data-scrim-d="left"] { --_sd: linear-gradient(90deg, rgb(var(--chs-scrim) / var(--chs-scrim-a)) 0%, rgb(var(--chs-scrim) / calc(var(--chs-scrim-a) * 0.6)) 38%, rgb(var(--chs-scrim) / 0) 75%); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-d="right"] { --_sd: linear-gradient(270deg, rgb(var(--chs-scrim) / var(--chs-scrim-a)) 0%, rgb(var(--chs-scrim) / calc(var(--chs-scrim-a) * 0.6)) 38%, rgb(var(--chs-scrim) / 0) 75%); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-d="bottom"] { --_sd: linear-gradient(0deg, rgb(var(--chs-scrim) / var(--chs-scrim-a)) 0%, rgb(var(--chs-scrim) / calc(var(--chs-scrim-a) * 0.55)) 40%, rgb(var(--chs-scrim) / 0) 80%); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-d="top"] { --_sd: linear-gradient(180deg, rgb(var(--chs-scrim) / var(--chs-scrim-a)) 0%, rgb(var(--chs-scrim) / calc(var(--chs-scrim-a) * 0.55)) 40%, rgb(var(--chs-scrim) / 0) 80%); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-d="full"] { --_sd: linear-gradient(rgb(var(--chs-scrim) / var(--chs-scrim-a)), rgb(var(--chs-scrim) / var(--chs-scrim-a))); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-m="left"] { --_sm: linear-gradient(90deg, rgb(var(--chs-scrim) / var(--chs-scrim-a)) 0%, rgb(var(--chs-scrim) / calc(var(--chs-scrim-a) * 0.6)) 45%, rgb(var(--chs-scrim) / 0) 90%); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-m="right"] { --_sm: linear-gradient(270deg, rgb(var(--chs-scrim) / var(--chs-scrim-a)) 0%, rgb(var(--chs-scrim) / calc(var(--chs-scrim-a) * 0.6)) 45%, rgb(var(--chs-scrim) / 0) 90%); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-m="bottom"] { --_sm: linear-gradient(0deg, rgb(var(--chs-scrim) / var(--chs-scrim-a)) 0%, rgb(var(--chs-scrim) / calc(var(--chs-scrim-a) * 0.55)) 45%, rgb(var(--chs-scrim) / 0) 90%); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-m="top"] { --_sm: linear-gradient(180deg, rgb(var(--chs-scrim) / var(--chs-scrim-a)) 0%, rgb(var(--chs-scrim) / calc(var(--chs-scrim-a) * 0.55)) 45%, rgb(var(--chs-scrim) / 0) 90%); }
+.coody-homeslider .coody-homeslider__layers[data-scrim-m="full"] { --_sm: linear-gradient(rgb(var(--chs-scrim) / var(--chs-scrim-a)), rgb(var(--chs-scrim) / var(--chs-scrim-a))); }
+
+/* Warstwa — wspólne */
+.coody-homeslider .chs-layer {
+  --_x: var(--x, 0%);
+  --_y: var(--y, 0%);
+  --_w: var(--w, max-content);
+  --_h: var(--h, auto);
+  --_fs: var(--fs, 16);
+  --_ref: 1296;
+  position: absolute;
+  top: var(--_y);
+  left: var(--_x);
+  width: var(--_w);
+  height: var(--_h);
+  box-sizing: border-box;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  color: var(--c, #fff);
+  font-family: inherit;
+  font-size: calc(var(--_fs) * 100cqi / var(--_ref));
+  font-weight: var(--fw, 400);
+  line-height: var(--lh, 1.2);
+  letter-spacing: var(--ls, 0);
+  text-align: var(--ta, left);
+  text-decoration: none;
+  overflow-wrap: break-word;
+  opacity: var(--op, 1);
+  pointer-events: none;
+}
+
+.coody-homeslider .chs-layer__inner {
+  display: block;
+}
+
+.coody-homeslider a.chs-layer {
+  pointer-events: auto;
+}
+
+.coody-homeslider .chs-layer--upper { text-transform: uppercase; }
+.coody-homeslider .chs-layer--italic { font-style: italic; }
+
+.coody-homeslider .chs-layer--text.chs-layer--shadow {
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.4), 0 6px 28px rgb(0 0 0 / 0.35);
+}
+
+.coody-homeslider .chs-layer--image.chs-layer--shadow .chs-layer__img {
+  filter: drop-shadow(0 1cqi 2.5cqi rgb(0 0 0 / 0.3));
+}
+
+.coody-homeslider .chs-layer--shape.chs-layer--shadow,
+.coody-homeslider .chs-layer--button.chs-layer--shadow {
+  box-shadow: 0 2cqi 5cqi -2cqi rgb(11 18 38 / 0.45);
+}
+
+/* Tekst z tłem (naklejka, etykieta) */
+.coody-homeslider .chs-layer--boxed {
+  padding: 0.42em 0.85em;
+  border-radius: calc(var(--r, 0) * 100cqi / var(--_ref));
+  background: var(--bg);
+}
+
+/* Tekst z kreską przed (nadtytuł) */
+.coody-homeslider .chs-layer--decor-line .chs-layer__inner {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+}
+
+.coody-homeslider .chs-layer--decor-line .chs-layer__inner::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 2.2em;
+  height: max(1px, 0.14em);
+  border-radius: 1em;
+  background: currentColor;
+}
+
+.coody-homeslider .chs-layer--decor-line[style*="--ta:center"] .chs-layer__inner { justify-content: center; }
+.coody-homeslider .chs-layer--decor-line[style*="--ta:right"] .chs-layer__inner { justify-content: flex-end; }
+
+a.chs-layer--link:hover .chs-layer__inner,
+a.chs-layer--link:focus-visible .chs-layer__inner {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* Przycisk */
+.coody-homeslider .chs-layer--button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  padding: 0.95em 1.55em;
+  border: 1px solid transparent;
+  border-radius: calc(var(--r, 999) * 100cqi / var(--_ref));
+  white-space: nowrap;
+  transition: background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, translate 0.25s ease, filter 0.25s ease, text-decoration-color 0.25s ease;
+}
+
+.coody-homeslider .chs-layer--button .chs-layer__inner {
+  display: inline;
+}
+
+.coody-homeslider .chs-layer__arrow {
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  transition: translate 0.25s ease;
+}
+
+.coody-homeslider a.chs-layer--button:hover .chs-layer__arrow,
+.coody-homeslider a.chs-layer--button:focus-visible .chs-layer__arrow {
+  translate: 0.22em 0;
+}
+
+.coody-homeslider .chs-btn--primary {
+  color: var(--c, var(--chs-accent-contrast));
+  background: var(--bg, var(--chs-accent));
+}
+
+.coody-homeslider .chs-btn--light {
+  color: var(--c, var(--chs-accent));
+  background: var(--bg, #fff);
+}
+
+.coody-homeslider a.chs-btn--primary:hover,
+.coody-homeslider a.chs-btn--primary:focus-visible,
+.coody-homeslider a.chs-btn--light:hover,
+.coody-homeslider a.chs-btn--light:focus-visible {
+  color: var(--c);
+  filter: brightness(0.93);
+  translate: 0 -1px;
+  box-shadow: 0 1.2cqi 3cqi -1.4cqi rgb(11 18 38 / 0.5);
+  text-decoration: none;
+}
+
+.coody-homeslider .chs-btn--outline {
+  background: transparent;
+  border: max(1px, 0.09em) solid currentColor;
+}
+
+.coody-homeslider a.chs-btn--outline:hover,
+.coody-homeslider a.chs-btn--outline:focus-visible {
+  color: var(--c);
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  text-decoration: none;
+}
+
+.coody-homeslider .chs-btn--link {
+  padding: 0.35em 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  text-decoration: underline;
+  text-decoration-thickness: max(1px, 0.07em);
+  text-underline-offset: 0.4em;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.coody-homeslider a.chs-btn--link:hover,
+.coody-homeslider a.chs-btn--link:focus-visible {
+  color: var(--c);
+  text-decoration-color: currentColor;
+}
+
+.coody-homeslider a.chs-layer:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+/* Obraz (logo, naklejka) */
+.coody-homeslider .chs-layer--image {
+  height: auto;
+}
+
+.coody-homeslider .chs-layer__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: calc(var(--r, 0) * 100cqi / var(--_ref));
+}
+
+/* Kształt (tło pod tekstem, karta) */
+.coody-homeslider .chs-layer--shape {
+  display: block;
+  border-radius: calc(var(--r, 0) * 100cqi / var(--_ref));
+  background: var(--bg, rgb(255 255 255 / 0.86));
+  -webkit-backdrop-filter: blur(var(--blur, 0px));
+  backdrop-filter: blur(var(--blur, 0px));
+}
+
+/* Animacja wejścia na aktywnym slajdzie */
+.coody-homeslider .chs-anim--fade { --_anim: chs-in-fade; }
+.coody-homeslider .chs-anim--up { --_anim: chs-in-up; }
+.coody-homeslider .chs-anim--down { --_anim: chs-in-down; }
+.coody-homeslider .chs-anim--left { --_anim: chs-in-left; }
+.coody-homeslider .chs-anim--right { --_anim: chs-in-right; }
+.coody-homeslider .chs-anim--zoom { --_anim: chs-in-zoom; }
+
+@keyframes chs-in-fade { from { opacity: 0; } }
+@keyframes chs-in-up { from { opacity: 0; transform: translate3d(0, 3cqi, 0); } }
+@keyframes chs-in-down { from { opacity: 0; transform: translate3d(0, -3cqi, 0); } }
+@keyframes chs-in-left { from { opacity: 0; transform: translate3d(-4cqi, 0, 0); } }
+@keyframes chs-in-right { from { opacity: 0; transform: translate3d(4cqi, 0, 0); } }
+@keyframes chs-in-zoom { from { opacity: 0; transform: scale(0.85); } }
+
+/* Ukryte od pierwszej klatki (zanim wystartuje karuzela), żeby tekst nie mignął przed animacją. */
+.coody-homeslider--animate .coody-homeslider__carousel.owl-loaded .owl-item .chs-layer:not(.chs-anim--none) {
+  opacity: 0;
+}
+
+/* Przed startem karuzeli; gdyby JS się nie wczytał — tekst pojawia się sam po 3 s. */
+.coody-homeslider--animate .coody-homeslider__carousel:not(.owl-loaded) .chs-layer:not(.chs-anim--none) {
+  opacity: 0;
+  animation: chs-in-fade 0.4s ease 3s both;
+}
+
+.coody-homeslider--animate .coody-homeslider__carousel.owl-loaded .owl-item.active .chs-layer:not(.chs-anim--none),
+.coody-homeslider--preview.is-playing .chs-layer:not(.chs-anim--none) {
+  opacity: var(--op, 1);
+  animation-name: var(--_anim);
+  animation-duration: var(--dur, 800ms);
+  animation-delay: var(--delay, 0ms);
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coody-homeslider--animate .coody-homeslider__carousel .chs-layer,
+  .coody-homeslider--animate .coody-homeslider__carousel.owl-loaded .owl-item .chs-layer,
+  .coody-homeslider--animate .coody-homeslider__carousel.owl-loaded .owl-item.active .chs-layer {
+    opacity: var(--op, 1);
+    animation: none !important;
+  }
+
+  .coody-homeslider .chs-layer--button,
+  .coody-homeslider .chs-layer__arrow {
+    transition: none;
+  }
+}
+
+/* Widoczność i wersja telefonu */
+@media (min-width: 768px) {
+  .coody-homeslider .chs-layer--hide-d {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .coody-homeslider .coody-homeslider__layers {
+    --_s: var(--_sm, none);
+  }
+
+  .coody-homeslider .chs-layer {
+    --_x: var(--xm, var(--x, 0%));
+    --_y: var(--ym, var(--y, 0%));
+    --_w: var(--wm, var(--w, max-content));
+    --_h: var(--hm, var(--h, auto));
+    --_fs: var(--fsm, var(--fs, 16));
+    --_ref: 375;
+  }
+
+  .coody-homeslider .chs-layer--hide-m {
+    display: none !important;
+  }
+}
+
+.coody-homeslider--preview-mobile .coody-homeslider__layers {
+  --_s: var(--_sm, none);
+}
+
+.coody-homeslider--preview-mobile .chs-layer {
+  --_x: var(--xm, var(--x, 0%));
+  --_y: var(--ym, var(--y, 0%));
+  --_w: var(--wm, var(--w, max-content));
+  --_h: var(--hm, var(--h, auto));
+  --_fs: var(--fsm, var(--fs, 16));
+  --_ref: 375;
+}

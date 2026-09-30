@@ -9,6 +9,7 @@ if (!defined('_PS_VERSION_')) {
 }
 
 require_once _PS_MODULE_DIR_ . 'coody_homeslider/classes/CoodyHomeSlide.php';
+require_once _PS_MODULE_DIR_ . 'coody_homeslider/classes/CoodyHomeSlideLayers.php';
 
 class AdminCoodyHomeSliderController extends ModuleAdminController
 {
@@ -64,7 +65,7 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
         foreach (Language::getLanguages(false) as $language) {
             $idLang = (int) $language['id_lang'];
 
-            foreach (['title', 'description', 'url', 'legend', 'image', 'image_mobile', 'button_title', 'button_link'] as $field) {
+            foreach (CoodyHomeSlide::LANG_FIELDS as $field) {
                 $values = $source->{$field};
                 if (is_array($values) && isset($values[$idLang])) {
                     if (!is_array($duplicate->{$field})) {
@@ -146,7 +147,82 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
     {
         return array_merge(parent::getTemplateFormVars(), [
             'image_baseurl' => __PS_BASE_URI__ . 'modules/coody_homeslider/img/',
+            'chs_preview' => $this->getPreviewConfig(),
+            'chs_slide' => $this->getSlideFieldValues(),
         ]);
+    }
+
+    /**
+     * Pola slajdu (grafiki, aktywność, nazwa, link, alt) wyświetlane w panelu „Slajd” edytora.
+     * Po błędzie walidacji pokazujemy wartości z POST.
+     *
+     * @return array<string, mixed>
+     */
+    private function getSlideFieldValues(): array
+    {
+        $object = $this->object && Validate::isLoadedObject($this->object) ? $this->object : null;
+        $values = [
+            'active' => (int) Tools::getValue('active', $object ? (int) $object->active : 1),
+            'langs' => [],
+        ];
+
+        foreach (Language::getLanguages(false) as $language) {
+            $idLang = (int) $language['id_lang'];
+            $row = [];
+            foreach (['title', 'url', 'legend'] as $field) {
+                $current = $object && is_array($object->{$field}) ? (string) ($object->{$field}[$idLang] ?? '') : '';
+                $row[$field] = (string) Tools::getValue($field . '_' . $idLang, $current);
+            }
+            foreach (['image', 'image_mobile'] as $field) {
+                $row[$field] = $object && is_array($object->{$field}) ? (string) ($object->{$field}[$idLang] ?? '') : '';
+            }
+            $values['langs'][$idLang] = $row;
+        }
+
+        return $values;
+    }
+
+    public function setMedia($isNewTheme = false)
+    {
+        parent::setMedia($isNewTheme);
+
+        if ($this->display === 'add' || $this->display === 'edit' || Tools::getIsset('add' . $this->table) || Tools::getIsset('update' . $this->table)) {
+            $base = _MODULE_DIR_ . 'coody_homeslider/views/';
+            $dir = _PS_MODULE_DIR_ . 'coody_homeslider/views/';
+            // Wersja = data modyfikacji pliku, żeby przeglądarka nie trzymała starego edytora.
+            $version = static function (string $file) use ($dir): string {
+                return '?v=' . (int) @filemtime($dir . $file);
+            };
+            $this->addCSS($base . 'css/front.css' . $version('css/front.css'), 'all', null, false);
+            $this->addCSS($base . 'css/admin-slide.css' . $version('css/admin-slide.css'), 'all', null, false);
+            $this->addJS($base . 'js/admin-slide.js' . $version('js/admin-slide.js'), false);
+        }
+    }
+
+    /**
+     * Ustawienia globalne potrzebne podglądowi (układ, akcent, nawigacja).
+     *
+     * @return array<string, mixed>
+     */
+    private function getPreviewConfig(): array
+    {
+        /** @var Coody_Homeslider $module */
+        $module = $this->module;
+        $accent = $module->normalizeAccent((string) Configuration::get(Coody_Homeslider::CONFIG_ACCENT));
+
+        $activeSlides = (int) Db::getInstance()->getValue(
+            'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'coody_homeslider_slide` WHERE `active` = 1'
+        );
+
+        return [
+            'layout' => $module->normalizeLayout((string) Configuration::get(Coody_Homeslider::CONFIG_LAYOUT)),
+            'accent' => $accent,
+            'accent_contrast' => $module->getContrastColor($accent),
+            'has_nav' => $activeSlides > 1 && !(int) Configuration::get(Coody_Homeslider::CONFIG_NAV_ARROWS_DOTS),
+            'config_url' => $this->context->link->getAdminLink('AdminCoodyHomeSliderConfig'),
+            'upload_url' => $this->context->link->getAdminLink('AdminCoodyHomeSlider') . '&ajax=1&action=uploadLayerImage',
+            'layer_image_base' => __PS_BASE_URI__ . 'modules/coody_homeslider/' . CoodyHomeSlideLayers::IMAGE_DIR,
+        ];
     }
 
     public function renderForm()
@@ -156,6 +232,17 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
             $this->fields_value['image_mobile'] = $this->object->image_mobile;
         }
 
+        $layersValue = [];
+        foreach (Language::getLanguages(false) as $language) {
+            $idLang = (int) $language['id_lang'];
+            $raw = Tools::getValue('layers_' . $idLang, null);
+            if ($raw === null && $this->object && Validate::isLoadedObject($this->object) && is_array($this->object->layers)) {
+                $raw = $this->object->layers[$idLang] ?? '';
+            }
+            $layersValue[$idLang] = CoodyHomeSlideLayers::encode(CoodyHomeSlideLayers::decode((string) $raw));
+        }
+        $this->fields_value['layers'] = $layersValue;
+
         $this->fields_form = [
             'legend' => [
                 'title' => $this->module->l('Slajd'),
@@ -163,77 +250,22 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
             ],
             'input' => [
                 [
-                    'type' => 'switch',
-                    'label' => $this->module->l('Aktywny'),
-                    'name' => 'active',
-                    'is_bool' => true,
-                    'values' => [
-                        ['id' => 'active_on', 'value' => 1, 'label' => $this->module->l('Tak')],
-                        ['id' => 'active_off', 'value' => 0, 'label' => $this->module->l('Nie')],
-                    ],
-                ],
-                [
-                    'type' => 'text',
-                    'label' => $this->module->l('Nazwa slajdu'),
-                    'name' => 'title',
+                    'type' => 'coody_layers',
+                    'name' => 'layers',
                     'lang' => true,
                 ],
-                [
-                    'type' => 'textarea',
-                    'label' => $this->module->l('Opis'),
-                    'name' => 'description',
-                    'lang' => true,
-                    'autoload_rte' => true,
-                    'rows' => 5,
-                ],
-                [
-                    'type' => 'text',
-                    'label' => $this->module->l('Tekst przycisku'),
-                    'name' => 'button_title',
-                    'lang' => true,
-                    'desc' => $this->module->l('Opcjonalnie. Wyświetlany na slajdzie jako CTA.'),
-                ],
-                [
-                    'type' => 'text',
-                    'label' => $this->module->l('Link przycisku'),
-                    'name' => 'button_link',
-                    'lang' => true,
-                    'desc' => $this->module->l('URL docelowy przycisku. Wymagany razem z tekstem przycisku.'),
-                ],
-                [
-                    'type' => 'text',
-                    'label' => $this->module->l('Link'),
-                    'name' => 'url',
-                    'lang' => true,
-                    'desc' => $this->module->l('Opcjonalny link całego slajdu (klik w obraz).'),
-                ],
-                [
-                    'type' => 'text',
-                    'label' => $this->module->l('Tekst alternatywny (alt)'),
-                    'name' => 'legend',
-                    'lang' => true,
-                ],
-                [
-                    'type' => 'file_lang',
-                    'label' => $this->module->l('Obraz (desktop)'),
-                    'name' => 'image',
-                    'lang' => true,
-                    'desc' => $this->module->l('Zalecane: szeroki baner na desktop.'),
-                ],
-                [
-                    'type' => 'file_lang',
-                    'label' => $this->module->l('Obraz (mobile)'),
-                    'name' => 'image_mobile',
-                    'lang' => true,
-                    'desc' => $this->module->l('Opcjonalnie. Jeśli puste — na mobile użyty zostanie obraz desktop.'),
-                ],
-            ],
-            'images' => [
-                'image' => (is_object($this->object) && is_array($this->object->image)) ? $this->object->image : [],
-                'image_mobile' => (is_object($this->object) && is_array($this->object->image_mobile)) ? $this->object->image_mobile : [],
             ],
             'submit' => [
                 'title' => $this->module->l('Zapisz'),
+            ],
+            'buttons' => [
+                'save-and-stay' => [
+                    'title' => $this->module->l('Zapisz i zostań'),
+                    'name' => 'submitAdd' . $this->table . 'AndStay',
+                    'type' => 'submit',
+                    'class' => 'btn btn-default pull-right',
+                    'icon' => 'process-icon-save',
+                ],
             ],
         ];
 
@@ -251,6 +283,19 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
         }
 
         parent::copyFromPost($object, $table);
+
+        // Warstwy: tylko znormalizowany JSON trafia do bazy.
+        foreach (Language::getLanguages(false) as $language) {
+            $idLang = (int) $language['id_lang'];
+            $raw = Tools::getValue('layers_' . $idLang, null);
+            if ($raw === null) {
+                continue;
+            }
+            if (!is_array($object->layers)) {
+                $object->layers = [];
+            }
+            $object->layers[$idLang] = CoodyHomeSlideLayers::encode(CoodyHomeSlideLayers::decode((string) $raw));
+        }
 
         foreach (Language::getLanguages(false) as $language) {
             $idLang = (int) $language['id_lang'];
@@ -315,8 +360,10 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
   /**
      * @param array<string, mixed> $file
      */
-    private function uploadSlideImage(array $file): string|false
+    private function uploadSlideImage(array $file, ?string $targetDir = null, bool $withWebp = true): string|false
     {
+        $targetDir = $targetDir ?? $this->slideImageDir;
+
         if ($error = ImageManager::validateUpload($file, Tools::getMaxUploadSize())) {
             $this->errors[] = $error;
 
@@ -332,7 +379,7 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
             return false;
         }
 
-        if (!is_dir($this->slideImageDir) && !@mkdir($this->slideImageDir, 0755, true) && !is_dir($this->slideImageDir)) {
+        if (!is_dir($targetDir) && !@mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
             $this->errors[] = $this->trans('An error occurred while uploading the image.', [], 'Admin.Notifications.Error');
 
             return false;
@@ -340,7 +387,7 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
 
         $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '-', basename((string) $file['name']));
         $destName = sha1(uniqid((string) mt_rand(), true)) . '_' . $safeName;
-        $destPath = $this->slideImageDir . $destName;
+        $destPath = $targetDir . $destName;
 
         $tempName = tempnam(_PS_TMP_IMG_DIR_, 'PS');
         if (!$tempName || !move_uploaded_file($file['tmp_name'], $tempName)) {
@@ -349,7 +396,12 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
             return false;
         }
 
-        if (!ImageManager::resize($tempName, $destPath)) {
+        // Obrazy warstw (logo, naklejki) zachowują format i przezroczystość; grafiki slajdu jak dotąd.
+        $resized = $withWebp
+            ? ImageManager::resize($tempName, $destPath)
+            : ImageManager::resize($tempName, $destPath, null, null, $extension === 'jpeg' ? 'jpg' : $extension);
+
+        if (!$resized) {
             @unlink($tempName);
             $this->errors[] = $this->trans('An error occurred while uploading the image.', [], 'Admin.Notifications.Error');
 
@@ -357,10 +409,10 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
         }
 
         // Keep a WebP sibling for front-office <picture> sources.
-        if (!preg_match('/\.webp$/i', $destName)) {
+        if ($withWebp && !preg_match('/\.webp$/i', $destName)) {
             $webpName = (string) preg_replace('/\.(jpe?g|png|gif)$/i', '.webp', $destName);
             if ($webpName && $webpName !== $destName) {
-                $webpPath = $this->slideImageDir . $webpName;
+                $webpPath = $targetDir . $webpName;
                 $quality = (int) Configuration::get('PS_WEBP_QUALITY') ?: 80;
                 ImageManager::resize($tempName, $webpPath, null, null, 'webp', false, $webpError, $tw, $th, $quality);
             }
@@ -398,7 +450,7 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
     {
         parent::postProcess();
 
-        if (Tools::isSubmit('submitAdd' . $this->table) || Tools::isSubmit('submitUpdate' . $this->table)) {
+        if (Tools::isSubmit('submitAdd' . $this->table) || Tools::isSubmit('submitAdd' . $this->table . 'AndStay') || Tools::isSubmit('submitUpdate' . $this->table)) {
             if (isset($this->module) && $this->module instanceof Coody_Homeslider) {
                 $this->module->clearCache();
             }
@@ -414,6 +466,49 @@ class AdminCoodyHomeSliderController extends ModuleAdminController
         }
 
         return $result;
+    }
+
+    /**
+     * Edytor warstw: upload obrazu warstwy (logo, naklejka). Zwraca nazwę pliku w img/layers/.
+     */
+    public function ajaxProcessUploadLayerImage()
+    {
+        header('Content-Type: application/json');
+
+        if (!$this->access('edit') && !$this->access('add')) {
+            $this->ajaxRender(json_encode(['success' => false, 'error' => $this->trans('You do not have permission to edit this.', [], 'Admin.Notifications.Error')]));
+
+            return;
+        }
+
+        if (!isset($_FILES['file']) || empty($_FILES['file']['tmp_name'])) {
+            $this->ajaxRender(json_encode(['success' => false, 'error' => $this->module->l('Nie wybrano pliku.')]));
+
+            return;
+        }
+
+        $dir = _PS_MODULE_DIR_ . 'coody_homeslider/' . CoodyHomeSlideLayers::IMAGE_DIR;
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+            @copy(_PS_MODULE_DIR_ . 'coody_homeslider/img/index.php', $dir . 'index.php');
+        }
+
+        $filename = $this->uploadSlideImage($_FILES['file'], $dir, false);
+        if ($filename === false) {
+            $this->ajaxRender(json_encode(['success' => false, 'error' => implode(' ', $this->errors)]));
+
+            return;
+        }
+
+        $size = @getimagesize($dir . $filename);
+
+        $this->ajaxRender(json_encode([
+            'success' => true,
+            'file' => $filename,
+            'url' => __PS_BASE_URI__ . 'modules/coody_homeslider/' . CoodyHomeSlideLayers::IMAGE_DIR . rawurlencode($filename),
+            'width' => $size ? (int) $size[0] : 0,
+            'height' => $size ? (int) $size[1] : 0,
+        ]));
     }
 
     public function ajaxProcessUpdatePositions()

@@ -2,7 +2,7 @@
 <module>
     <name>coody_homeslider</name>
     <displayName><![CDATA[Coody - Slider strony gł&oacute;wnej]]></displayName>
-    <version><![CDATA[1.0.14]]></version>
+    <version><![CDATA[1.1.0]]></version>
     <description><![CDATA[Slider baner&oacute;w na stronie gł&oacute;wnej z osobną grafiką na mobile.]]></description>
     <author><![CDATA[coody.it]]></author>
     <tab><![CDATA[front_office_features]]></tab>

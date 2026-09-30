@@ -2,6 +2,27 @@
 
 Wszystkie istotne zmiany w module **Coody Home Slider** (`coody_homeslider`).
 
+## [1.1.0] — 2026-09-30
+
+### Dodane
+- **Wizualny edytor slajdu** w BO: warstwy tekstu, przycisków, obrazów i kształtów układane bezpośrednio na podglądzie — przeciąganie z przyciąganiem, zmiana szerokości, edycja tekstu dwuklikiem, lista warstw, cofnij/ponów, skróty klawiszowe.
+- Osobne położenie, rozmiar i widoczność warstw dla komputera i telefonu; „Ułóż automatycznie” dla telefonu.
+- Animacje wejścia warstw (efekt, opóźnienie, czas) z podglądem w edytorze.
+- Przyciemnienie zdjęcia pod warstwami (gradient z wybranej strony / całość), osobno dla komputera i telefonu.
+- Upload obrazów warstw (PNG z przezroczystością) do `img/layers/`.
+- Konfiguracja: układ *Pełna szerokość / W kontenerze*, kolor akcentu, animacja napisów.
+- Formularz slajdu jako jeden ekran edytora: panel boczny *Warstwa / Slajd* (grafiki, aktywność, nazwa, link, alt w panelu *Slajd*); skalowanie tekstu uchwytem w rogu, suwak i A− / A+; zoom podglądu; animacja odtwarza się po zmianie ustawień; przycisk „Zapisz i zostań”.
+
+### Zmienione
+- Cały slajd (grafiki + warstwy) jest per język; brak grafik w danym języku → slajd z języka domyślnego.
+- Szablon frontu obsługuje WebP (`<picture>`), `fetchpriority` dla pierwszego slajdu i tryb „W kontenerze” — override w motywie nie jest już potrzebny.
+
+### Migracja
+- Upgrade tworzy kolumnę `layers` i zamienia dotychczasowy napis (nazwa slajdu, opis, przycisk) na warstwy.
+- Po aktualizacji ustaw **Układ** w Konfiguracji (domyślnie *Pełna szerokość*); sklep, który miał slider w kontenerze przez override motywu, wybiera *W kontenerze*.
+
+---
+
 ## [1.0.14] — 2026-09-10
 
 ### Naprawione

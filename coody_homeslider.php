@@ -12,12 +12,18 @@ if (!defined('_PS_VERSION_')) {
 }
 
 require_once dirname(__FILE__) . '/classes/CoodyHomeSlide.php';
+require_once dirname(__FILE__) . '/classes/CoodyHomeSlideLayers.php';
 
 class Coody_Homeslider extends Module
 {
     public const CONFIG_ENABLED = 'COODY_HOMESLIDER_ENABLED';
     public const CONFIG_SPEED = 'COODY_HOMESLIDER_SPEED';
     public const CONFIG_NAV_ARROWS_DOTS = 'COODY_HOMESLIDER_NAV_ARROWS_DOTS';
+    public const CONFIG_LAYOUT = 'COODY_HOMESLIDER_LAYOUT';
+    public const CONFIG_ACCENT = 'COODY_HOMESLIDER_ACCENT';
+    public const CONFIG_ANIMATE = 'COODY_HOMESLIDER_ANIMATE';
+    public const LAYOUTS = ['full', 'contained'];
+    public const DEFAULT_ACCENT = '#1d2f67';
     public const TPL_SLIDER = 'module:coody_homeslider/views/templates/hook/slider.tpl';
 
     /** @var bool */
@@ -27,7 +33,7 @@ class Coody_Homeslider extends Module
     {
         $this->name = 'coody_homeslider';
         $this->tab = 'front_office_features';
-        $this->version = '1.0.14';
+        $this->version = '1.1.0';
         $this->author = 'coody.it';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -48,6 +54,9 @@ class Coody_Homeslider extends Module
             && Configuration::updateValue(self::CONFIG_ENABLED, 1)
             && Configuration::updateValue(self::CONFIG_SPEED, 5000)
             && Configuration::updateValue(self::CONFIG_NAV_ARROWS_DOTS, 0)
+            && Configuration::updateValue(self::CONFIG_LAYOUT, 'full')
+            && Configuration::updateValue(self::CONFIG_ACCENT, self::DEFAULT_ACCENT)
+            && Configuration::updateValue(self::CONFIG_ANIMATE, 1)
             && $this->registerHook('displayHeader')
             && $this->registerHook('displayWrapperTop')
             && $this->registerHook('displayHomeTop')
@@ -63,6 +72,9 @@ class Coody_Homeslider extends Module
             && Configuration::deleteByName(self::CONFIG_ENABLED)
             && Configuration::deleteByName(self::CONFIG_SPEED)
             && Configuration::deleteByName(self::CONFIG_NAV_ARROWS_DOTS)
+            && Configuration::deleteByName(self::CONFIG_LAYOUT)
+            && Configuration::deleteByName(self::CONFIG_ACCENT)
+            && Configuration::deleteByName(self::CONFIG_ANIMATE)
             && parent::uninstall();
     }
 
@@ -74,10 +86,16 @@ class Coody_Homeslider extends Module
             $enabled = (int) Tools::getValue(self::CONFIG_ENABLED);
             $speed = max(1000, (int) Tools::getValue(self::CONFIG_SPEED));
             $navArrowsDots = (int) Tools::getValue(self::CONFIG_NAV_ARROWS_DOTS);
+            $layout = $this->normalizeLayout((string) Tools::getValue(self::CONFIG_LAYOUT));
+            $accent = $this->normalizeAccent((string) Tools::getValue(self::CONFIG_ACCENT));
+            $animate = (int) Tools::getValue(self::CONFIG_ANIMATE);
 
             $this->updateConfigForAllShops(self::CONFIG_ENABLED, $enabled);
             $this->updateConfigForAllShops(self::CONFIG_SPEED, $speed);
             $this->updateConfigForAllShops(self::CONFIG_NAV_ARROWS_DOTS, $navArrowsDots);
+            $this->updateConfigForAllShops(self::CONFIG_LAYOUT, $layout);
+            $this->updateConfigForAllShops(self::CONFIG_ACCENT, $accent);
+            $this->updateConfigForAllShops(self::CONFIG_ANIMATE, $animate);
 
             $this->clearCache();
             $output .= $this->displayConfirmation($this->l('Ustawienia zostały zapisane.'));
@@ -113,7 +131,7 @@ class Coody_Homeslider extends Module
         $this->context->controller->registerStylesheet(
             'module-coody-homeslider',
             'modules/' . $this->name . '/views/css/front.css',
-            ['media' => 'all', 'priority' => 250]
+            ['media' => 'all', 'priority' => 250, 'version' => $this->assetVersion('views/css/front.css')]
         );
 
         $this->context->controller->registerJavascript(
@@ -125,8 +143,16 @@ class Coody_Homeslider extends Module
         $this->context->controller->registerJavascript(
             'module-coody-homeslider',
             'modules/' . $this->name . '/views/js/front.js',
-            ['position' => 'bottom', 'priority' => 200]
+            ['position' => 'bottom', 'priority' => 200, 'version' => $this->assetVersion('views/js/front.js')]
         );
+    }
+
+    /**
+     * Wersja assetu w URL = data modyfikacji pliku — przeglądarki nie trzymają starego CSS/JS po aktualizacji.
+     */
+    private function assetVersion(string $relativePath): string
+    {
+        return 'v=' . (int) @filemtime(_PS_MODULE_DIR_ . $this->name . '/' . $relativePath);
     }
 
     public function hookDisplayWrapperTop(array $params): string
@@ -223,13 +249,15 @@ class Coody_Homeslider extends Module
             $image = (string) ($row['image'] ?? '');
             $imageMobile = (string) ($row['image_mobile'] ?? '');
 
-            if (($image === '' || $imageMobile === '') && isset($fallbackRows[$slideId])) {
-                if ($image === '') {
-                    $image = (string) ($fallbackRows[$slideId]['image'] ?? '');
-                }
-                if ($imageMobile === '') {
-                    $imageMobile = (string) ($fallbackRows[$slideId]['image_mobile'] ?? '');
-                }
+            $layersJson = (string) ($row['layers'] ?? '');
+
+            // Cały slajd jest per język: brak grafik w bieżącym języku → slajd (grafiki + warstwy) z języka domyślnego.
+            if ($image === '' && $imageMobile === '' && isset($fallbackRows[$slideId])) {
+                $image = (string) ($fallbackRows[$slideId]['image'] ?? '');
+                $imageMobile = (string) ($fallbackRows[$slideId]['image_mobile'] ?? '');
+                $layersJson = (string) ($fallbackRows[$slideId]['layers'] ?? '');
+            } elseif ($image === '' && isset($fallbackRows[$slideId])) {
+                $image = (string) ($fallbackRows[$slideId]['image'] ?? '');
             }
 
             // Brak grafiki mobile → użyj desktop (front i <picture>).
@@ -243,6 +271,7 @@ class Coody_Homeslider extends Module
 
             $slides[] = [
                 'id' => $slideId,
+                'layers' => CoodyHomeSlideLayers::toFront(CoodyHomeSlideLayers::decode($layersJson), $this->_path . CoodyHomeSlideLayers::IMAGE_DIR),
                 'title' => $this->resolveSlideLangValue($row, $fallbackRows, $slideId, 'title'),
                 'description' => $this->resolveSlideLangValue($row, $fallbackRows, $slideId, 'description'),
                 'url' => $this->resolveSlideLangValue($row, $fallbackRows, $slideId, 'url'),
@@ -299,7 +328,7 @@ class Coody_Homeslider extends Module
         }
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
-            'SELECT `id_coody_homeslider_slide`, `title`, `description`, `url`, `legend`, `image`, `image_mobile`, `button_title`, `button_link`
+            'SELECT `id_coody_homeslider_slide`, `title`, `description`, `url`, `legend`, `image`, `image_mobile`, `button_title`, `button_link`, `layers`
             FROM `' . _DB_PREFIX_ . 'coody_homeslider_slide_lang`
             WHERE `id_lang` = ' . (int) $idLang . '
             AND `id_coody_homeslider_slide` IN (' . implode(',', $slideIds) . ')'
@@ -353,12 +382,13 @@ class Coody_Homeslider extends Module
 
         $navArrowsDots = (bool) (int) Configuration::get(self::CONFIG_NAV_ARROWS_DOTS);
         $speed = max(1000, (int) Configuration::get(self::CONFIG_SPEED));
+        $layout = $this->normalizeLayout((string) Configuration::get(self::CONFIG_LAYOUT));
+        $accent = $this->normalizeAccent((string) Configuration::get(self::CONFIG_ACCENT));
+        $animate = (bool) (int) Configuration::get(self::CONFIG_ANIMATE);
         $cacheId = 'coody_homeslider|'
             . (int) $this->context->shop->id . '|'
             . (int) $this->context->language->id . '|'
-            . (int) $navArrowsDots . '|'
-            . $speed . '|'
-            . md5(json_encode($slides));
+            . md5(json_encode([$slides, $navArrowsDots, $speed, $layout, $accent, $animate]));
 
         if (!$this->isCached(self::TPL_SLIDER, $cacheId)) {
             $this->context->smarty->assign([
@@ -366,12 +396,44 @@ class Coody_Homeslider extends Module
                     'slides' => $slides,
                     'speed' => $speed,
                     'nav_arrows_dots' => $navArrowsDots,
+                    'layout' => $layout,
+                    'accent' => $accent,
+                    'accent_contrast' => $this->getContrastColor($accent),
+                    'animate' => $animate,
                     'placeholder_url' => $this->_path . 'img/placeholder.svg',
                 ],
             ]);
         }
 
         return $this->fetch(self::TPL_SLIDER, $cacheId);
+    }
+
+    public function normalizeLayout(string $layout): string
+    {
+        return in_array($layout, self::LAYOUTS, true) ? $layout : 'full';
+    }
+
+    public function normalizeAccent(string $color): string
+    {
+        $color = trim($color);
+
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? strtolower($color) : self::DEFAULT_ACCENT;
+    }
+
+    /**
+     * Tekst na przycisku w kolorze akcentu: biały albo prawie czarny (kontrast WCAG).
+     */
+    public function getContrastColor(string $hex): string
+    {
+        $rgb = array_map(static function (string $part): float {
+            $c = hexdec($part) / 255;
+
+            return $c <= 0.03928 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
+        }, str_split(ltrim($hex, '#'), 2));
+
+        $luminance = 0.2126 * $rgb[0] + 0.7152 * $rgb[1] + 0.0722 * $rgb[2];
+
+        return $luminance > 0.4 ? '#111827' : '#ffffff';
     }
 
     protected function isModuleActive(): bool
@@ -435,6 +497,37 @@ class Coody_Homeslider extends Module
                             ['id' => 'nav_arrows_dots_off', 'value' => 0, 'label' => $this->l('Nie')],
                         ],
                     ],
+                    [
+                        'type' => 'select',
+                        'label' => $this->l('Układ'),
+                        'name' => self::CONFIG_LAYOUT,
+                        'desc' => $this->l('„W kontenerze” — slider w szerokości treści strony, z zaokrąglonymi rogami i naturalną wysokością grafiki. „Pełna szerokość” — od krawędzi do krawędzi ekranu.'),
+                        'options' => [
+                            'query' => [
+                                ['id' => 'full', 'name' => $this->l('Pełna szerokość')],
+                                ['id' => 'contained', 'name' => $this->l('W kontenerze')],
+                            ],
+                            'id' => 'id',
+                            'name' => 'name',
+                        ],
+                    ],
+                    [
+                        'type' => 'color',
+                        'label' => $this->l('Kolor akcentu'),
+                        'name' => self::CONFIG_ACCENT,
+                        'desc' => $this->l('Kolor przycisków, nadtytułów i akcentów w napisach na slajdach. Domyślnie granat JT Mebel (#1d2f67).'),
+                    ],
+                    [
+                        'type' => 'switch',
+                        'label' => $this->l('Animacja napisów'),
+                        'name' => self::CONFIG_ANIMATE,
+                        'is_bool' => true,
+                        'desc' => $this->l('Napis płynnie pojawia się przy zmianie slajdu. Wyłączana automatycznie dla osób z ograniczeniem ruchu w systemie.'),
+                        'values' => [
+                            ['id' => 'animate_on', 'value' => 1, 'label' => $this->l('Tak')],
+                            ['id' => 'animate_off', 'value' => 0, 'label' => $this->l('Nie')],
+                        ],
+                    ],
                 ],
                 'submit' => [
                     'title' => $this->l('Zapisz'),
@@ -469,6 +562,9 @@ class Coody_Homeslider extends Module
             self::CONFIG_ENABLED => (int) Configuration::get(self::CONFIG_ENABLED),
             self::CONFIG_SPEED => (int) Configuration::get(self::CONFIG_SPEED),
             self::CONFIG_NAV_ARROWS_DOTS => (int) Configuration::get(self::CONFIG_NAV_ARROWS_DOTS),
+            self::CONFIG_LAYOUT => $this->normalizeLayout((string) Configuration::get(self::CONFIG_LAYOUT)),
+            self::CONFIG_ACCENT => $this->normalizeAccent((string) Configuration::get(self::CONFIG_ACCENT)),
+            self::CONFIG_ANIMATE => (int) Configuration::get(self::CONFIG_ANIMATE),
         ];
 
         return $helper->generateForm([$fieldsForm]);
@@ -496,6 +592,7 @@ class Coody_Homeslider extends Module
             `image_mobile` VARCHAR(255) NULL,
             `button_title` VARCHAR(255) NULL,
             `button_link` VARCHAR(255) NULL,
+            `layers` MEDIUMTEXT NULL,
             PRIMARY KEY (`id_coody_homeslider_slide`, `id_lang`)
         ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4;';
 
@@ -706,6 +803,68 @@ class Coody_Homeslider extends Module
         }
 
         return (bool) $ok;
+    }
+
+    /**
+     * 1.1.0: warstwy slajdu (JSON per język). Dotychczasowy napis — nazwa slajdu, którą motyw
+     * wyświetlał jako tytuł, opis i przycisk — zamieniany jest na warstwy, żeby front się nie zmienił.
+     */
+    public function ensureLayerFields(): bool
+    {
+        $langTable = _DB_PREFIX_ . 'coody_homeslider_slide_lang';
+        if (!$this->addMissingColumns($langTable, ['layers' => 'MEDIUMTEXT NULL'])) {
+            return false;
+        }
+
+        $rows = Db::getInstance()->executeS(
+            'SELECT `id_coody_homeslider_slide`, `id_lang`, `title`, `description`, `button_title`, `button_link`
+            FROM `' . bqSQL($langTable) . '`
+            WHERE `layers` IS NULL OR `layers` = \'\''
+        );
+
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            $layers = CoodyHomeSlideLayers::fromLegacy(
+                (string) $row['title'],
+                (string) $row['description'],
+                (string) $row['button_title'],
+                (string) $row['button_link']
+            );
+
+            Db::getInstance()->update(
+                'coody_homeslider_slide_lang',
+                ['layers' => pSQL(CoodyHomeSlideLayers::encode($layers), true)],
+                '`id_coody_homeslider_slide` = ' . (int) $row['id_coody_homeslider_slide'] . ' AND `id_lang` = ' . (int) $row['id_lang']
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * @param array<string, string> $columns name => SQL definition
+     */
+    private function addMissingColumns(string $table, array $columns): bool
+    {
+        $ok = true;
+        foreach ($columns as $name => $definition) {
+            if ($this->tableHasColumn($table, $name)) {
+                continue;
+            }
+            $ok = $ok && Db::getInstance()->execute(
+                'ALTER TABLE `' . bqSQL($table) . '` ADD `' . bqSQL($name) . '` ' . $definition
+            );
+        }
+
+        return (bool) $ok;
+    }
+
+    private function tableHasColumn(string $table, string $column): bool
+    {
+        $rows = Db::getInstance()->executeS(
+            'SHOW COLUMNS FROM `' . bqSQL($table) . '` LIKE \'' . pSQL($column) . '\''
+        );
+
+        return is_array($rows) && $rows !== [];
     }
 
     /**

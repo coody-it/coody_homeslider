@@ -1,35 +1,43 @@
 {if $coody_homeslider.slides|count}
-<section class="coody-homeslider{if $coody_homeslider.nav_arrows_dots} coody-homeslider--arrows-dots{/if}" aria-label="{l s='Slider strony głównej' d='Modules.CoodyHomeslider.Shop'}">
+{if $coody_homeslider.layout == 'contained'}<div class="container">{/if}
+<section
+  class="coody-homeslider{if $coody_homeslider.layout == 'contained'} coody-homeslider--contained{/if}{if $coody_homeslider.nav_arrows_dots} coody-homeslider--arrows-dots{/if}{if $coody_homeslider.animate} coody-homeslider--animate{/if}{if $coody_homeslider.slides|count > 1} coody-homeslider--has-nav{/if}"
+  style="--chs-accent: {$coody_homeslider.accent|escape:'html':'UTF-8'}; --chs-accent-contrast: {$coody_homeslider.accent_contrast|escape:'html':'UTF-8'};"
+  aria-label="{l s='Slider strony głównej' d='Modules.CoodyHomeslider.Shop'}"
+>
   <div class="coody-homeslider__inner">
     <div class="coody-homeslider__carousel owl-carousel" role="region" aria-roledescription="{l s='karuzela' d='Shop.Theme.Global'}" data-coody-speed="{$coody_homeslider.speed|intval}" data-coody-nav="{if $coody_homeslider.nav_arrows_dots}arrows-dots{else}titles{/if}">
       {foreach from=$coody_homeslider.slides item=slide name=coody_hs}
         <div class="coody-homeslider__slide" role="group" aria-roledescription="{l s='slajd' d='Shop.Theme.Global'}" aria-label="{$slide.legend|default:$slide.title|escape:'htmlall':'UTF-8'}" data-coody-image-desktop="{$slide.image_url|escape:'html':'UTF-8'}" data-coody-image-mobile="{$slide.image_mobile_url|escape:'html':'UTF-8'}">
-          {if $slide.url}
-            <a href="{$slide.url|escape:'htmlall':'UTF-8'}"{if $slide.legend} title="{$slide.legend|escape:'htmlall':'UTF-8'}"{/if}>
-          {/if}
-              <figure>
-                {if $slide.image_mobile_url && $slide.image_url}
-                  <picture>
-                    <source media="(max-width: 767px)" srcset="{$slide.image_mobile_url|escape:'html':'UTF-8'}">
-                    <img class="coody-homeslider__image coody-homeslider__image--desktop" src="{$slide.image_url|escape:'html':'UTF-8'}" alt="{$slide.legend|default:$slide.title|escape:'htmlall':'UTF-8'}">
-                  </picture>
-                {elseif $slide.image_url}
-                  <img class="coody-homeslider__image" src="{$slide.image_url|escape:'html':'UTF-8'}" alt="{$slide.legend|default:$slide.title|escape:'htmlall':'UTF-8'}">
-                {elseif $slide.image_mobile_url}
-                  <img class="coody-homeslider__image coody-homeslider__image--mobile-only" src="{$slide.image_mobile_url|escape:'html':'UTF-8'}" alt="{$slide.legend|default:$slide.title|escape:'htmlall':'UTF-8'}">
+          <figure>
+            {if $slide.url}
+              <a class="coody-homeslider__media-link" href="{$slide.url|escape:'htmlall':'UTF-8'}"{if $slide.legend} title="{$slide.legend|escape:'htmlall':'UTF-8'}"{/if}>
+            {/if}
+              <picture>
+                {if $slide.image_mobile_webp_url}
+                  <source type="image/webp" media="(max-width: 767px)" srcset="{$slide.image_mobile_webp_url|escape:'html':'UTF-8'}">
                 {/if}
+                {if $slide.image_mobile_url}
+                  <source media="(max-width: 767px)" srcset="{$slide.image_mobile_url|escape:'html':'UTF-8'}">
+                {/if}
+                {if $slide.image_webp_url}
+                  <source type="image/webp" srcset="{$slide.image_webp_url|escape:'html':'UTF-8'}">
+                {/if}
+                <img
+                  class="coody-homeslider__image{if !$slide.image_url} coody-homeslider__image--mobile-only{/if}"
+                  src="{if $slide.image_url}{$slide.image_url|escape:'html':'UTF-8'}{else}{$slide.image_mobile_url|escape:'html':'UTF-8'}{/if}"
+                  width="1320"
+                  height="450"
+                  {if $smarty.foreach.coody_hs.first}fetchpriority="high"{else}loading="lazy"{/if}
+                  alt="{$slide.legend|default:$slide.title|escape:'htmlall':'UTF-8'}"
+                >
+              </picture>
+            {if $slide.url}
+              </a>
+            {/if}
 
-                {if $slide.description}
-                  <figcaption class="caption">
-                    <div class="desc">
-                      <div>{$slide.description nofilter}</div>
-                    </div>
-                  </figcaption>
-                {/if}
-              </figure>
-          {if $slide.url}
-            </a>
-          {/if}
+            {include file='module:coody_homeslider/views/templates/hook/_caption.tpl' slide=$slide}
+          </figure>
         </div>
       {/foreach}
     </div>
@@ -80,4 +88,5 @@
     {/if}
   </div>
 </section>
+{if $coody_homeslider.layout == 'contained'}</div>{/if}
 {/if}

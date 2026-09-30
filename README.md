@@ -3,7 +3,7 @@
 Moduł slidera banerów na stronie głównej dla **PrestaShop 8.x i 9.x**.
 
 Autor: [coody.it](https://coody.it)  
-Wersja: **1.0.14**
+Wersja: **1.1.0**
 
 ## Wymagania
 
@@ -64,21 +64,37 @@ Menu: **Coody → Slider**
 
 Zapis konfiguracji działa w **multistore** (wartość trafia do wszystkich sklepów).
 
+- **Układ** — *Pełna szerokość* (od krawędzi do krawędzi) albo *W kontenerze* (szerokość treści strony, zaokrąglone rogi, naturalna wysokość grafiki).
+- **Kolor akcentu** — domyślny kolor przycisków i naklejek w edytorze (domyślnie `#1d2f67`).
+- **Animacja napisów** — warstwy wjeżdżają przy zmianie slajdu (wyłączane automatycznie przy `prefers-reduced-motion`).
+
 ### Zarządzanie slajdami
 
-Dla każdego slajdu (per język):
+Formularz slajdu to jeden ekran edytora: pasek narzędzi, podgląd slajdu z paskiem warstw pod spodem (klik — zaznacz, oko — widoczność na urządzeniu) i panel boczny z przełącznikiem **Warstwa / Slajd**:
 
-| Pole | Opis |
-|------|------|
-| Nazwa slajdu | Tytuł w pasku nawigacji (tryb tytułów) |
-| Opis | Opcjonalny tekst na slajdzie (HTML) |
-| Link | URL po kliknięciu w slajd |
-| Tekst alternatywny (alt) | Atrybut `alt` obrazka |
-| Grafika desktop | Obraz dla ekranów ≥768px |
-| Grafika mobile | Obraz dla ekranów <768px (gdy puste → desktop) |
-| Tekst / link przycisku | Opcjonalne CTA na slajdzie |
+- **Warstwa** — ustawienia zaznaczonej warstwy (treść, rozmiar tekstu, wyśrodkowanie, wygląd, animacja; w nagłówku: na wierzch / pod spód, duplikuj, usuń).
+- **Slajd** — aktywny, grafika desktop (zalecane 2592 × 900 px) i mobile (opcjonalnie, ok. 1500 × 970 px), nazwa slajdu (lista i pasek nawigacji), link całego slajdu, tekst alt. Panel otwiera się też po kliknięciu w puste miejsce slajdu.
 
-Dostępne akcje: edycja, duplikacja, usuwanie, zmiana kolejności (pozycja).
+Cały slajd jest **osobny dla każdego języka** (jak pola językowe PrestaShop): własne grafiki i własny układ warstw. W edytorze jest przełącznik języka i „Skopiuj z języka”. Brak grafik w danym języku → na froncie użyty zostanie cały slajd z języka domyślnego.
+
+Dostępne akcje na liście: edycja, duplikacja, usuwanie, zmiana kolejności (pozycja).
+
+### Edytor slajdu (warstwy)
+
+Napisy układa się bezpośrednio na podglądzie slajdu:
+
+- **Warstwy**: *Tekst* (nadtytuł, nagłówek, podtytuł, opis, naklejka), *Przycisk* (pełny, jasny, obrys, link), *Obraz* (PNG/JPG/WebP/GIF — logo, naklejka; zachowuje przezroczystość), *Kształt* (jasna / ciemna karta z rozmyciem, pasek).
+- **Przeciąganie** myszą z przyciąganiem do marginesów, środka i innych warstw (Alt — bez przyciągania), strzałki = przesunięcie (Shift — większy krok). Położenie ustawia się tylko myszą; w panelu są przyciski *Środek poziomo / pionowo*.
+- **Uchwyty**: z prawej — szerokość; w rogu warstwy tekstowej / przycisku — rozmiar tekstu (skalowanie), obrazu — szerokość; kształt — szerokość i wysokość. Rozmiar tekstu także suwakiem i A− / A+.
+- **Zoom podglądu** (lupa −/+, Ctrl + kółko myszy) — do precyzyjnej pracy z małym tekstem.
+- **Dwuklik** lub Enter — edycja tekstu na slajdzie. Delete — usuń, Ctrl+D — duplikuj, Ctrl+Z / Ctrl+Shift+Z — cofnij / ponów.
+- **Komputer / Telefon** — osobne położenie, szerokość, rozmiar tekstu i widoczność dla każdego urządzenia. *Ułóż automatycznie* ustawia warstwy na telefonie jedna pod drugą.
+- **Ustawienia warstwy**: treść (duże pole na górze panelu), link (nowa karta), kolor, tło, krycie, grubość, wyrównanie, interlinia, odstęp liter, wersaliki, cień, zaokrąglenie; animacja wejścia (efekt, opóźnienie, czas) — odtwarza się od razu po zmianie.
+- **Przyciemnienie zdjęcia** pod warstwami (od lewej / prawej / dołu / góry / całe), osobno dla komputera i telefonu, z siłą i kolorem.
+
+Rozmiary w edytorze odnoszą się do szerokości referencyjnej (komputer 1296 px, telefon 375 px); na froncie warstwy skalują się proporcjonalnie ze slajdem (jednostki `cqi`), więc układ wygląda tak samo na każdej szerokości.
+
+Dane warstw: kolumna `layers` (JSON) w `ps_coody_homeslider_slide_lang`, normalizowana przez `CoodyHomeSlideLayers` przy zapisie i renderze.
 
 ## Zachowanie na froncie
 
@@ -130,14 +146,18 @@ Marginesy mobile **nie są** częścią modułu — każdy sklep może je ustawi
 coody_homeslider/
 ├── coody_homeslider.php          # Główna klasa modułu
 ├── classes/CoodyHomeSlide.php    # Model slajdu (ObjectModel)
+├── classes/CoodyHomeSlideLayers.php # Warstwy: normalizacja JSON, render, migracja
 ├── controllers/admin/            # Parent / Konfiguracja / Slajdy
 ├── views/
-│   ├── css/front.css             # Style slidera i nawigacji
+│   ├── css/front.css             # Style slidera, nawigacji i warstw
+│   ├── css/admin-slide.css       # Edytor warstw (BO)
+│   ├── js/admin-slide.js         # Edytor warstw (BO)
 │   ├── css/owl.carousel.min.css  # Owl Carousel (wbudowany)
 │   ├── js/front.js               # Logika karuzeli i breakpointów
 │   ├── js/owl.carousel.min.js    # Owl Carousel (wbudowany)
-│   └── templates/hook/slider.tpl
+│   └── templates/hook/slider.tpl, _caption.tpl (warstwy)
 ├── img/                          # Grafiki slajdów + placeholder.svg
+├── img/layers/                   # Obrazy warstw (logo, naklejki)
 ├── sql/                          # Tabele bazy danych
 └── upgrade/                      # Skrypty aktualizacji
 ```

@@ -10,8 +10,16 @@ if (!defined('_PS_VERSION_')) {
 
 class CoodyHomeSlide extends ObjectModel
 {
+    /** Lang fields copied by duplicate. Cały slajd (warstwy + grafiki) jest osobny dla każdego języka. */
+    public const LANG_FIELDS = [
+        'title', 'description', 'url', 'legend', 'image', 'image_mobile', 'button_title', 'button_link', 'layers',
+    ];
+
     public $active = true;
     public $position = 0;
+
+    /** @var string|array JSON warstw (CoodyHomeSlideLayers), per język */
+    public $layers;
 
     /** @var string */
     public $title;
@@ -52,6 +60,8 @@ class CoodyHomeSlide extends ObjectModel
             'image_mobile' => ['type' => self::TYPE_STRING, 'lang' => true, 'validate' => 'isGenericName', 'size' => 255],
             'button_title' => ['type' => self::TYPE_STRING, 'lang' => true, 'validate' => 'isGenericName', 'size' => 255],
             'button_link' => ['type' => self::TYPE_STRING, 'lang' => true, 'validate' => 'isUrl', 'size' => 255],
+            // JSON — normalizowany przez CoodyHomeSlideLayers przed zapisem; TYPE_HTML, żeby pSQL nie wycinał znaków < >.
+            'layers' => ['type' => self::TYPE_HTML, 'lang' => true, 'validate' => 'isString', 'size' => 65000],
         ],
     ];
 

@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS `PREFIX_coody_homeslider_slide_lang` (
     `legend` VARCHAR(255) NULL,
     `image` VARCHAR(255) NULL,
     `image_mobile` VARCHAR(255) NULL,
+    `button_title` VARCHAR(255) NULL,
+    `button_link` VARCHAR(255) NULL,
+    `layers` MEDIUMTEXT NULL,
     PRIMARY KEY (`id_coody_homeslider_slide`, `id_lang`)
 ) ENGINE=ENGINE_TYPE DEFAULT CHARSET=utf8mb4;
 
